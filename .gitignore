@@ -74,3 +74,4 @@ docs/throughput-*.json
 ios-qa/scripts/gen-accessors-tool/.build/
 ios-qa/scripts/gen-accessors-tool/Package.resolved
 .gstack/
+.tmp/
