@@ -1,0 +1,22 @@
+# Bundle patch for the gstack DSH plugin. `name` must be the package name from
+# package.json so the profile resolves the same specifier pnpm installed.
+# Rows are addressed by `id`; the manager's plugin toggle updates `disabled` on
+# this row instead of rewriting the skill discovery settings below.
+- insert:
+    - id: gstack-dsh
+      name: gstack-dsh-plugin
+      config:
+        # Master switch; false registers neither skills nor the tool.
+        enabled: true
+        # true registers every discovered skill at startup. Set false to keep
+        # the skill catalog small; the gstack tool then only lists the install.
+        auto: true
+        # Register the `gstack` router skill too.
+        includeRouter: true
+        # Optional: an explicit gstack installation root. When set it is
+        # authoritative, and GSTACK_ROOT / $DSH_HOME are not consulted.
+        # root: 'C:/Users/you/.dsh/skills/gstack'
+        # Optional: skill names to skip when registering.
+        # exclude: ['gstack-captain']
+        # Optional: rename the read-only status tool (default: gstack).
+        # toolName: gstack

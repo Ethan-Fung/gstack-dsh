@@ -1,0 +1,32 @@
+{
+  "name": "gstack-dsh-plugin",
+  "version": "0.1.0",
+  "description": "Expose a gstack installation's SKILL.md suite to DeepSeek Harness as bundled skills, with a read-only gstack tool.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "gstack",
+    "skills"
+  ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "lib/",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
