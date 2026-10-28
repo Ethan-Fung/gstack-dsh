@@ -89,6 +89,14 @@ export interface HostConfig {
      * bare `review` would be shadowed by any other `review` skill (#2825).
      */
     nameMatchesDirectory?: boolean;
+    /**
+     * Collapse `description:` to its lead sentence + "(gstack)" on this host
+     * even without `--catalog-mode trim` (Claude's flag-controlled variant).
+     * For runtimes that always load every skill description into the system
+     * prompt, where each entry costs context in every session — DSH truncates
+     * catalog entries to `catalogDescriptionMaxLength` (500) anyway.
+     */
+    catalogTrim?: boolean;
     /** Rename fields from template (e.g., { 'voice-triggers': 'triggers' }). */
     renameFields?: Record<string, string>;
     /** Conditionally add fields based on template frontmatter values. */

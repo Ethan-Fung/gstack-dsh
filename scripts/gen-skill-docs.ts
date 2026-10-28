@@ -851,8 +851,13 @@ function processTemplate(tmplPath: string, host: Host, options: RenderOptions): 
     content = header + content;
   }
 
-  // Catalog trim (Claude only — external hosts have their own frontmatter shapes)
-  if (host === 'claude' && options.catalogMode === 'trim') {
+  // Catalog trim. Claude's always-loaded catalog opts in per invocation via
+  // --catalog-mode; a host whose runtime always loads every description sets
+  // frontmatter.catalogTrim so its entries stay one line regardless of the flag.
+  const catalogTrimEnabled = host === 'claude'
+    ? options.catalogMode === 'trim'
+    : currentHostConfig.frontmatter.catalogTrim === true;
+  if (catalogTrimEnabled) {
     const trimmed = applyCatalogTrim(content, skillName);
     if (trimmed) content = trimmed.content;
   }

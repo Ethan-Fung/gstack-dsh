@@ -137,6 +137,7 @@ if [ "$FORCE" -eq 0 ]; then
   [ -d "$HOME/.config/opencode/skills" ] && echo "  ~/.config/opencode/skills/gstack*"
   [ -d "$HOME/.copilot/skills" ] && echo "  ~/.copilot/skills/gstack*"
   [ -d "$HOME/.gemini/antigravity-cli/skills" ] && echo "  ~/.gemini/antigravity-cli/skills/gstack*"
+  [ -d "$HOME/.dsh/skills" ] && echo "  ~/.dsh/skills/gstack*"
   [ "$KEEP_STATE" -eq 0 ] && [ -d "$STATE_DIR" ] && echo "  $STATE_DIR"
   [ -n "$_LEAVE_ROOT" ] && echo "  (kept) $_LEAVE_ROOT: state root selected by $RESOLVED_VAR; left in place"
 
@@ -524,6 +525,22 @@ if [ -d "$ANTIGRAVITY_SKILLS" ]; then
     if _cursor_item_is_gstack_managed "$_ITEM"; then
       rm -rf "$_ITEM"
       REMOVED+=("agy/$(basename "$_ITEM")")
+    else
+      _SKIPPED_DIRS+=("$_ITEM")
+    fi
+  done
+fi
+
+# ─── Remove DeepSeek Harness (DSH) skills ───────────────────
+# Same provenance gate. ~/.dsh is DSH's whole home (memories, sessions,
+# config), so only gstack* entries under skills/ go, never the directory.
+DSH_SKILLS="$HOME/.dsh/skills"
+if [ -d "$DSH_SKILLS" ]; then
+  for _ITEM in "$DSH_SKILLS"/gstack*; do
+    [ -e "$_ITEM" ] || [ -L "$_ITEM" ] || continue
+    if _cursor_item_is_gstack_managed "$_ITEM"; then
+      rm -rf "$_ITEM"
+      REMOVED+=("dsh/$(basename "$_ITEM")")
     else
       _SKIPPED_DIRS+=("$_ITEM")
     fi

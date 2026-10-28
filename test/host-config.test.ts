@@ -37,8 +37,8 @@ const RESOLVER_NAMES = new Set(Object.keys(RESOLVERS));
 // ─── hosts/index.ts ─────────────────────────────────────────
 
 describe('hosts/index.ts', () => {
-  test('ALL_HOST_CONFIGS has 12 hosts', () => {
-    expect(ALL_HOST_CONFIGS.length).toBe(12);
+  test('ALL_HOST_CONFIGS has 13 hosts', () => {
+    expect(ALL_HOST_CONFIGS.length).toBe(13);
   });
 
   test('ALL_HOST_NAMES matches config names', () => {
@@ -871,4 +871,87 @@ describe('agent-runtime hosts never leak the Claude "Agent tool" name', () => {
     expect(leaks).toEqual([]);
     expect(mentions).toBeGreaterThan(0);
   }, 120_000);
+});
+
+// ─── DeepSeek Harness host ──────────────────────────────────
+
+describe('DSH host: depth-1 skill roots, trimmed catalog entries, ~/.dsh paths', () => {
+  const OUT = fs.mkdtempSync(path.join(os.tmpdir(), 'gstack-dsh-'));
+  let skills: string[] = [];
+
+  beforeAll(async () => {
+    const result = await runGeneration({ host: 'dsh', outputRoot: OUT, contentLinkRoot: null });
+    expect(result.exitCode).toBe(0);
+    skills = result.artifacts.filter(a => a.kind === 'skill').map(a => a.relativePath);
+    expect(skills.length).toBeGreaterThan(50);
+  }, 180_000);
+  afterAll(() => fs.rmSync(OUT, { recursive: true, force: true }));
+
+  const read = (relativePath: string) => fs.readFileSync(path.join(OUT, relativePath), 'utf8');
+  const frontmatter = (relativePath: string) => read(relativePath).match(/^---\n([\s\S]*?)\n---/)![1];
+  const description = (relativePath: string): string => {
+    const fm = frontmatter(relativePath);
+    const block = fm.match(/^description: \|\s*\n((?:  .*\n?)+)/m);
+    if (block) return block[1].split('\n').map(l => l.replace(/^\s{2}/, '')).join('\n').trim();
+    return fm.match(/^description: (.+)$/m)![1].replace(/^"|"$/g, '');
+  };
+  const skillPath = (name: string) => path.join('.dsh', 'skills', name, 'SKILL.md');
+
+  test('each skill renders at depth-1 .dsh/skills/<name>/SKILL.md with a matching name', () => {
+    for (const relativePath of skills) {
+      const segments = relativePath.split(/[\\/]/);
+      expect(segments).toEqual(['.dsh', 'skills', segments[2], 'SKILL.md']);
+      expect(segments[2]).toMatch(/^gstack(-[a-z0-9-]+)?$/); // router + gstack-<skill>
+      // DSH merges same-name skills across roots, so the name must match the
+      // directory it ships in (nameMatchesDirectory).
+      expect(frontmatter(relativePath)).toMatch(new RegExp(`^name: ${segments[2]}$`, 'm'));
+    }
+  });
+
+  test('frontmatter keeps only name + description — DSH ignores the rest', () => {
+    for (const relativePath of skills) {
+      const keys = frontmatter(relativePath).split('\n').filter(l => /^[a-zA-Z_-]+:/.test(l)).map(l => l.split(':')[0]);
+      expect(keys).toEqual(['name', 'description']);
+    }
+  });
+
+  test('descriptions stay inside DSH catalog limits', () => {
+    for (const relativePath of skills) {
+      // catalogDescriptionMaxLength defaults to 500 in DSH; exceeding it
+      // silently truncates the routing sentence the model sees.
+      expect(description(relativePath).length).toBeLessThanOrEqual(500);
+    }
+    // catalogTrim on the host config trims a long description to its lead
+    // sentence + "(gstack)" without --catalog-mode trim.
+    const ship = description(skillPath('gstack-ship'));
+    expect(ship).not.toContain('\n');
+    expect(ship).toEndWith('(gstack)');
+  });
+
+  test('rendered paths point at ~/.dsh, never ~/.claude', () => {
+    const leaks = skills.filter(relativePath => /\.claude[\\/]skills/.test(read(relativePath)));
+    expect(leaks).toEqual([]);
+    expect(read(skillPath('gstack-ship'))).toContain('~/.dsh/skills/gstack');
+  });
+
+  test('preamble names the DSH tools before the STATUS-line rules', () => {
+    const md = read(skillPath('gstack-ship'));
+    const glossary = md.indexOf('**DeepSeek Harness tool names:**');
+    const anchor = md.indexOf('Read the echoed `KEY: value` STATUS lines');
+    expect(glossary).toBeGreaterThan(-1);
+    expect(anchor).toBeGreaterThan(-1);
+    expect(glossary).toBeLessThan(anchor);
+    const block = md.slice(glossary, anchor);
+    for (const tool of ['ask_user_question', 'exit_plan_mode', 'subagent', 'todo_write', 'ops_read_files', 'ops_bash', 'job_output']) {
+      expect(block).toContain(tool);
+    }
+  });
+
+  test('safety skills render advisory, not blocked', () => {
+    for (const skill of ['careful', 'freeze', 'guard']) {
+      const md = read(skillPath(`gstack-${skill}`));
+      expect(md).toContain('not enforced on DeepSeek Harness');
+      expect(md).toContain('advisory, not blocked');
+    }
+  });
 });
