@@ -75,12 +75,13 @@ installs and passes the conformance tests but has no certification run yet;
 | Kiro | experimental | `--host kiro` → `~/.kiro/skills/gstack-*/` | ask for `gstack-office-hours` | advisory, not blocked | Codex CLI, signed in | `./setup --host kiro` |
 | GitHub Copilot CLI | experimental | `--host copilot` → `~/.copilot/skills/gstack-*/` | `/gstack-office-hours` | advisory, not blocked | Codex CLI, signed in | `./setup --host copilot` |
 | Antigravity CLI | experimental | `--host agy` (or `--host antigravity`) → `~/.gemini/antigravity-cli/skills/gstack-*/` | `/gstack-office-hours` | advisory, not blocked | Codex CLI, signed in | `./setup --host agy` |
+| DeepSeek Harness | experimental | `--host dsh` → `~/.dsh/skills/gstack-*/` (also renders `.dsh/skills/` in the checkout, a DSH project skill root) | `/gstack-office-hours` | advisory, not blocked | `dsh headless` (via gstack's outside-voice provider) | `./setup --host dsh` |
 | Slate | instruction-only | `--host slate` (points at the Claude install; Slate reads `.claude/skills`) | `/office-hours` via the Claude install | advisory, not blocked | — | `./setup --host claude` |
 | OpenClaw | instruction-only | `--host openclaw` (prints the digest path; ACP spawns Claude Code — [docs/OPENCLAW.md](docs/OPENCLAW.md)) | "Load gstack. Run /review" | advisory, not blocked | — | re-copy the digest after upgrades |
 | Hermes | instruction-only | `--host hermes` (prints the digest path and `gen:skill-docs --host hermes`) | copy the digest, or render skills yourself | advisory, not blocked | — | re-copy the digest after upgrades |
 | GBrain (mod) | instruction-only | `--host gbrain` (brain-aware variants ship from the GBrain repo) | — | advisory, not blocked | — | — |
 
-Per-host notes (Copilot, Antigravity, OpenClaw and ClawHub, the Codex behavioral profile and model tiers, outside-review providers, the design binary's models) are in [docs/hosts.md](docs/hosts.md). Any rules-reading agent (Zed, Amp, Jules) can use the 2KB [agents digest](agents-digest/gstack-AGENTS.md) with no install. Adding a host: [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
+Per-host notes (Copilot, Antigravity, DeepSeek Harness, OpenClaw and ClawHub, the Codex behavioral profile and model tiers, outside-review providers, the design binary's models) are in [docs/hosts.md](docs/hosts.md). DeepSeek Harness installs user-level skills under `~/.dsh/skills/` with `./setup --host dsh`; the optional [dsh-plugin](dsh-plugin/README.md) package registers an existing install instead, so the two are alternatives. Any rules-reading agent (Zed, Amp, Jules) can use the 2KB [agents digest](agents-digest/gstack-AGENTS.md) with no install. Adding a host: [docs/ADDING_A_HOST.md](docs/ADDING_A_HOST.md).
 
 ## See it work
 

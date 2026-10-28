@@ -20,7 +20,9 @@ gstack/
 │   ├── codex.ts, factory.ts, kiro.ts  # Existing hosts
 │   ├── opencode.ts, slate.ts, cursor.ts, openclaw.ts  # IDE hosts
 │   ├── hermes.ts, gbrain.ts  # Agent runtime hosts
+│   ├── dsh.ts       # DeepSeek Harness host config; optional dsh-plugin/ package registers an existing install
 │   └── index.ts     # Registry: exports all, derives Host type
+├── dsh-plugin/      # Optional DeepSeek Harness plugin (gstack-dsh-plugin): registers an installed tree's skills + one read-only tool; not installed by setup
 ├── scripts/         # Build + DX tooling
 │   ├── gen-skill-docs.ts  # Template → SKILL.md generator (config-driven)
 │   ├── gen-agents-digest.ts  # Generates the budget-capped instruction-tier digest (agents-digest/)

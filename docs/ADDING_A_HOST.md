@@ -2,7 +2,7 @@
 
 gstack uses a declarative host config system. Each supported AI coding agent
 (Claude, Codex, Factory, Kiro, OpenCode, Slate, Cursor, OpenClaw, Hermes,
-GBrain, Copilot, Antigravity) is defined as a typed TypeScript config object built by the
+GBrain, Copilot, Antigravity, DeepSeek Harness) is defined as a typed TypeScript config object built by the
 `defineHost()` factory. Rendering a new host means creating one file and
 re-exporting it: the generator, tests, and validation pick it up. Installing
 it is not free: setup still has one install arm per installable host (see
@@ -76,13 +76,13 @@ Inventory of every setup side effect, by phase (line numbers are approximate):
 |---|---|---|
 | Build | `browse/dist`, `design/dist`, `make-pdf/dist`, `bin/gstack-cso-*` in the source checkout | source |
 | Hosts record | `.gstack-installed-hosts` in the source checkout: every host setup installed from it, additive (#1694) | source |
-| Generation | renders for the recorded hosts only (`.agents/`, `.kiro/`, `.factory/`, `.opencode/`, `.cursor/`, `.copilot/`, `.agy/`) in the source checkout; `gstack-patch-names` rewrites Claude `name:` fields in place | source |
+| Generation | renders for the recorded hosts only (`.agents/`, `.kiro/`, `.factory/`, `.opencode/`, `.cursor/`, `.copilot/`, `.agy/`, `.dsh/`) in the source checkout; `gstack-patch-names` rewrites Claude `name:` fields in place | source |
 | Render prune | renders of hosts the record does not name: links into the checkout removed, generated files moved to `$GSTACK_STATE_ROOT/backups/host-renders/<ts>-<id>/`, other files kept | source / state root |
 | Chromium | Playwright cache (`~/.cache/ms-playwright`), lock under the state root | machine |
 | Config | `skill_prefix`, `timeline_stop_hook`, team-mode keys in `$GSTACK_STATE_ROOT/config.yaml` | state root |
 | Claude arm | `~/.claude/skills/gstack` link, one dir per skill with a `SKILL.md` link, alias copies | selected host |
 | Codex arm | `${CODEX_HOME:-~/.codex}/skills/gstack` runtime root, `gstack-*` links into `.agents/skills`, `.agents/skills/gstack` sidecar | selected host |
-| Kiro, Factory, OpenCode, Cursor, Copilot, Antigravity arms | the host's `skills/gstack` runtime root (built beside the live one and swapped in) and `gstack-*` links | selected host |
+| Kiro, Factory, OpenCode, Cursor, Copilot, Antigravity, DeepSeek Harness arms | the host's `skills/gstack` runtime root (built beside the live one and swapped in) and `gstack-*` links | selected host |
 | OpenCode commands | `~/.config/opencode/commands/gstack-*.md` with a managed marker (#2629); user command files are never touched | selected host |
 | Registry | one row per activated install in `installs.tsv` | state root |
 | Migrations | whatever each `v*.sh` repairs; marker in the state root | state root |
@@ -175,14 +175,25 @@ Hosts with `safetyHooks: 'advisory'` get one line at the top of `/careful`,
 2. Run one representative workflow for real on the host (for example
    `/review` on a small diff), and an upgrade from an existing install.
 3. Add a row below with the date, host version, gstack version, and where the
-   transcript lives, then set `tier: 'full'`.
+   transcript lives, then set `tier: 'full'`. A row may instead record a host
+   that stays `experimental`: it states what the conformance kit proved and what
+   has not run yet, and leaves `tier` alone.
 
 | Host | Date | Host version | gstack version | Evidence |
 |---|---|---|---|---|
 | claude | 2026-10-02 | Claude Code 2.1.284 (CI image pin) | v1.91.13.0 (1c54555) | gate-tier evals, real Claude Code sessions: https://github.com/garrytan/gstack/actions/runs/37033755821 |
+| dsh | 2026-10-28 | DSH 0.2.1-rc.3 | 1.91.288.0 (working tree) | conformance kit (`test/host-conformance.test.ts`) plus one real `./setup --host dsh` against `~/.dsh` (Windows, `--no-browser`); no representative DSH workflow, no loaded plugin, no certification transcript — stays `experimental` |
 
 Codex stays `experimental` until its periodic cases (`codex-discover-skill`,
 `codex-review`) pass on the CI image's pinned Codex CLI and a row is added.
+
+DeepSeek Harness stays `experimental` on the same terms: the `.dsh/skills/`
+render and the `./setup --host dsh` arm are covered by the conformance kit, and
+one real install against `~/.dsh` on Windows proved the layout (`--no-browser`:
+no browser binary was built), but no DSH session has run a gstack workflow, no
+plugin install has been loaded, and `DSH_HOME` relocation is unimplemented
+(setup refuses a non-default value and changes nothing). Its row above records
+what was proved instead of a transcript.
 
 ## GitHub Copilot CLI (#393)
 
@@ -275,6 +286,42 @@ root's extra markdown files (`ETHOS.md`, `review/*.md`) as skills, the
 partial-read behavior of `view_file` on long skills, `ask_question` option
 handling, and an upgrade from an existing install.
 
+## DeepSeek Harness (`dsh`)
+
+`hosts/dsh.ts` defines it. The install root is `~/.dsh/skills/gstack` (runtime
+root) plus one `~/.dsh/skills/gstack-<skill>/` per skill; the same tree renders
+in the checkout as `.dsh/skills/`, which is also a DSH project skill root.
+`./setup --host dsh` renders it with `bun run gen:skill-docs --host dsh` and links
+the skill directories. `--host auto` selects DSH when `dsh` is on `PATH` or
+`~/.dsh` exists, so a machine that never ran DSH is not selected by accident.
+
+Skills carry the `gstack-` prefix because DSH indexes a profile's skills by
+frontmatter `name` and a bare `review` would collide with other names. The
+router is `gstack`; each skill is `/gstack-<skill>`. Frontmatter keeps only
+`name` (equal to the directory name) and `description`; the catalog is trimmed
+and descriptions are capped at 1024 characters, failing generation rather than
+truncating silently. `DSH_HOME` is read but only the default `~/.dsh` is
+supported today: setup refuses any other value up front and changes nothing,
+because the render embeds literal `~/.dsh` paths. `bin/gstack-uninstall` removes
+only `gstack*` entries under `~/.dsh/skills/`, behind the provenance gate.
+
+Two capabilities differ from Claude Code: there is no user-level hook
+configuration, so `safetyHooks` is `advisory` (`/careful`, `/freeze` and `/guard`
+only advise), and review army is suppressed. The second opinion instead runs
+gstack's outside-voice provider through `dsh --profile headless` with
+`DSH_PERMISSION_MODE=read-only`, prompt on stdin and the answer on stdout;
+`GSTACK_DSH_BIN`, then `PATH`, then the default install path resolve the binary,
+and a call without `DEEPSEEK_API_KEY` fails rather than reviewing. The optional
+[`dsh-plugin/`](../dsh-plugin/README.md) package (`gstack-dsh-plugin`) registers
+an existing install from its own source and writes no skill files, so it can run
+beside the directory install.
+
+Not verified: a running DSH loading the plugin (it is installed into one desktop
+profile for evaluation, and plugin bundles load at startup), `DSH_HOME`
+relocation, and any end-to-end DSH workflow. The real install used
+`--no-browser`, so the browser skills have no engine until setup runs again
+without that flag. That is why the tier is `experimental`.
+
 ## Instruction-only hosts
 
 OpenClaw, Hermes, Slate and GBrain have no install arm. Hermes stays
@@ -300,6 +347,7 @@ hosts/
 ├── gbrain.ts        # GBrain
 ├── copilot.ts       # GitHub Copilot CLI
 ├── agy.ts           # Google Antigravity CLI
+├── dsh.ts           # DeepSeek Harness
 └── index.ts         # Registry: imports all, derives Host type
 ```
 

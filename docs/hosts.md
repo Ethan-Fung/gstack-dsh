@@ -2,9 +2,9 @@
 
 The README has the host matrix: one row per agent with its tier, install
 command and first invocation. This page has the rest: OpenClaw, how a checkout
-decides which agents it renders for, the per-host notes, outside-review
-providers, the Codex behavioral profile, model tiers, and the design binary's
-models.
+decides which agents it renders for, the per-host notes, DeepSeek Harness,
+outside-review providers, the Codex behavioral profile, model tiers, and the
+design binary's models.
 
 ## OpenClaw
 
@@ -73,9 +73,68 @@ Antigravity only when `agy` is on `PATH` or `~/.gemini/antigravity-cli` exists,
 never for a Gemini-CLI-only `~/.gemini`. The Antigravity 2.0 app and IDE read
 `~/.gemini/config/skills`, which this host does not install.
 
-Outside reviews require the selected CLI to be installed and authenticated: Claude Code when using gstack in Codex, or Codex on other harnesses. External harnesses discover these commands as `/gstack-claude-code` and `/gstack-codex`; each harness omits its own wrapper. Explicit provider requests keep that provider. The existing `codex_reviews` setting controls automatic outside reviews where supported, regardless of the provider selected.
+Outside reviews require the selected CLI to be installed and authenticated: Claude Code when using gstack in Codex, Codex on the other harnesses, or `dsh` in headless mode when using gstack in DeepSeek Harness (see [DeepSeek Harness](#deepseek-harness-dsh)). External harnesses discover these commands as `/gstack-claude-code` and `/gstack-codex`; each harness omits its own wrapper. Explicit provider requests keep that provider. The existing `codex_reviews` setting controls automatic outside reviews where supported, regardless of the provider selected.
 
 `/claude` has been renamed to `/claude-code`. Re-run `./setup --host <name>` to migrate managed installations, including other harnesses sharing the checkout. Setup preserves the previous installation if replacement generation or installation fails and prints repair instructions.
+
+## DeepSeek Harness (dsh)
+
+DeepSeek Harness (DSH) reads user-level skills from `~/.dsh/skills/<name>/SKILL.md`
+and project-level skills from `.dsh/skills/` in a checkout. gstack renders one
+tree for both: `./setup --host dsh` builds a runtime root at
+`~/.dsh/skills/gstack/` (the `gstack` router `SKILL.md` plus `bin/`, `lib/` and
+the compiled binaries) and one `~/.dsh/skills/gstack-<skill>/` per skill, 62 of
+them, while the checkout's `.dsh/skills/` (gitignored) is a DSH project skill
+root. The `gstack-` prefix is required rather than stylistic: DSH indexes a
+profile's skills by frontmatter `name`, so a bare `review` would not be
+distinguishable from any other `review`. The router is `/gstack`; each skill is
+`/gstack-<skill>`, for example `/gstack-review`. The tier is `experimental`: the
+render and install arm have conformance tests, but no representative DSH
+workflow has been run against them yet.
+
+`--host auto` selects DSH when `dsh` is on `PATH` or `~/.dsh` exists — a machine
+that has never run DSH has no `.dsh` directory, so detection cannot pick it up by
+accident. `DSH_HOME` is read but not yet configurable: setup supports the default
+`~/.dsh` and refuses a non-default value before writing anything, because the
+render embeds literal `~/.dsh` paths. `./setup --status` lists the install, and
+`bin/gstack-uninstall` removes only `gstack*` entries under `~/.dsh/skills/`, behind
+the same provenance gate as the other hosts, because that home also holds DSH's
+own memories, sessions and config.
+
+Two capabilities differ from Claude Code. DSH has no user-level hook
+configuration, so `safetyHooks` is `advisory`: `/careful`, `/freeze` and `/guard`
+render as prose and cannot block. Review army is off. The second opinion is
+`dsh` itself in headless mode: gstack runs `dsh --profile headless` with
+`DSH_PERMISSION_MODE=read-only`, sends the prompt on stdin and reads the answer
+from stdout, after resolving the binary through `GSTACK_DSH_BIN`, then `dsh` on
+`PATH`, then the default install path. Headless mode does not read the desktop
+sign-in, so it needs `DEEPSEEK_API_KEY` in the environment (or a `.env` in the
+working directory); without it the call fails and the skill reports
+`execution_failed`, `empty_response` or `timeout` instead of a review. Browser
+skills still run gstack's fallback engine through `$B`; DSH's own browser tools
+are not wired up yet.
+
+`/gstack-upgrade` refreshes the DSH install like any other registered host: it
+resolves the checkout through the runtime root's `.source-path` and re-links the
+skill directories. The optional [`dsh-plugin/`](../dsh-plugin/README.md) package
+(`gstack-dsh-plugin`) is the other way in: `dsh plugin --profile <profile> add
+<path>` or the DSH Web GUI's Plugins page registers an existing install (default
+`~/.dsh/skills/gstack`, overridable through the plugin's `root` config), adds it
+as a skill source and exposes one read-only `gstack` tool. It writes no skill
+files, so it can be installed beside the setup install; its `bundled` source
+(rank 250) shadows the same tree discovered as a directory source (rank 400), so
+the two registrations should collapse to one entry per skill name (not yet
+observed in a running app).
+
+`./setup --host dsh` has run against a real `~/.dsh` on Windows (2026-10-28): the
+runtime root, the 62 prefixed skill directories and `.source-path` land as
+described, a rerun is idempotent, `--status` lists the install and a non-default
+`DSH_HOME` is refused. That run used `--no-browser`, so no browser binary was
+built and `/browse`, `/qa`, `/design-review`, `/make-pdf` and `/diagram` stay
+unavailable until setup runs again without the flag. Still unverified: a running
+DSH loading the plugin (it is installed into one desktop profile for
+evaluation, and plugin bundles load at startup), `DSH_HOME` relocation, and any
+end-to-end gstack workflow on DSH — which is why the tier stays `experimental`.
 
 ## Instruction-only agents
 
