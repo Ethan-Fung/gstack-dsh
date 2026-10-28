@@ -174,7 +174,7 @@ Prepare a structured review prompt requesting severity-tagged findings ([P0]-[P3
 
 ${outsideVoiceInvocation(ctx, { timeoutMs: 540000, nativeAlreadyRequired: true, structuredBase: '<base>', gate: 'structured', diffCommand: 'DIFF_BASE=$(git merge-base <base> HEAD) && git diff "$DIFF_BASE"' })}
 
-${outsideVoiceFor(ctx).id === 'codex' ? 'The Codex backend uses `codex review --base` without a positional prompt: those arguments are mutually exclusive. Never drop --base to resolve an argv error; prompt-only review changes the diff scope.' : 'The Claude Code backend receives the parent-captured base diff, including committed and working-tree changes, because review mode cannot execute git.'}
+${outsideVoiceFor(ctx).id === 'codex' ? 'The Codex backend uses `codex review --base` without a positional prompt: those arguments are mutually exclusive. Never drop --base to resolve an argv error; prompt-only review changes the diff scope.' : outsideVoiceFor(ctx).id === 'dsh' ? 'The DeepSeek Harness headless backend has no `--base` flag: the prompt travels on stdin, its stdout is the final answer, and the parent-captured base diff (committed and working-tree changes) is the review scope.' : 'The Claude Code backend receives the parent-captured base diff, including committed and working-tree changes, because review mode cannot execute git.'}
 
 Present output under \`${outsideVoiceFor(ctx).label.toUpperCase()} SAYS (code review):\` inside a \`tool-output\` fence.
 Only a completed response with severity tags or an explicit no-findings conclusion establishes the gate. P0/P1 findings (\`[P0]\`/\`[P1]\` or native \`P0:\`/\`P1:\` labels; \`VERDICT: findings\`) → GATE: FAIL. Completed without P0/P1 → GATE: PASS. Refusal, failure, missing markers or \`OUTSIDE_STATUS: unverified\` → GATE: MISSING COVERAGE; no fix question.
@@ -435,7 +435,7 @@ only its \`OUTSIDE VOICE (...)\` subagent report; never print both for one revie
 
 ${ceo ? `**Native fallback — provider unavailable or execution failed, with reviews enabled:**
 
-Report the actual failure: authentication needs \`${outsideVoiceFor(ctx).id === 'codex' ? 'codex login' : 'claude auth login'}\`;
+Report the actual failure: ${outsideVoiceFor(ctx).id === 'dsh' ? 'authentication needs `DEEPSEEK_API_KEY` in the launch environment (or `<cwd>/.env`); headless runs never read the sign-in saved in the desktop app' : 'authentication needs `' + (outsideVoiceFor(ctx).id === 'codex' ? 'codex login' : 'claude auth login') + '`'};
 timeout means the five-minute limit expired; empty output means no response.
 Other preflight failures retain their printed diagnosis, including harness mismatch.
 These failures do not block the review; they use the bounded fallback below.

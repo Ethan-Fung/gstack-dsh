@@ -19,6 +19,11 @@ function skillDir(host: typeof ALL_HOST_CONFIGS[number], skill: string): string 
     : join(output, host.hostSubdir, 'skills', skill === 'gstack' ? 'gstack' : `gstack-${skill}`);
 }
 
+/** The outside provider each host renders: a host never reviews itself. */
+function expectedProvider(hostName: string): 'codex' | 'claude-code' | 'dsh' {
+  return hostName === 'codex' ? 'claude-code' : hostName === 'dsh' ? 'dsh' : 'codex';
+}
+
 function readUnion(dir: string): string {
   const sectionDir = join(dir, 'sections');
   return readFileSync(join(dir, 'SKILL.md'), 'utf8')
@@ -53,13 +58,14 @@ describe('outside-review host and model matrix', () => {
     });
 
     test(`${host.name}: every model overlay retains the same provider and routing`, () => {
+      const provider = expectedProvider(host.name);
       const providers = ALL_MODEL_NAMES.map(model => {
         const ctx: TemplateContext = { host: host.name, model, skillName: 'review', tmplPath: 'review/SKILL.md.tmpl', paths: HOST_PATHS[host.name] };
         const voice = outsideVoiceFor(ctx);
-        expect(voice.id).toBe(host.name === 'codex' ? 'claude-code' : 'codex');
-        expect(voice.skillName).toBe(host.name === 'codex' ? 'claude-code' : 'codex');
+        expect(voice.id).toBe(provider);
+        expect(voice.skillName).toBe(provider);
         const command = outsideVoiceCommand(ctx, { promptFile: '"$PROMPT_FILE"', timeoutMs: 120_000 });
-        expect(command).toContain(host.name === 'codex' ? 'gstack-claude-code' : 'codex');
+        expect(command).toContain(provider === 'claude-code' ? 'gstack-claude-code' : provider);
         if (host.name === 'codex') expect(command).not.toMatch(/\bcodex\s+(?:exec|review)\s/);
         return RESOLVERS.OUTSIDE_VOICE_ROUTING(ctx);
       });
@@ -69,7 +75,8 @@ describe('outside-review host and model matrix', () => {
     test(`${host.name}: generic and explicit second-opinion routing is installed`, () => {
       const router = readUnion(skillDir(host, 'gstack'));
       expect(router).toMatch(/second opinion/i);
-      expect(router).toContain(host.name === 'codex' ? 'claude-code' : 'codex');
+      expect(router).toContain(expectedProvider(host.name));
+      if (host.name === 'dsh') expect(router).toContain('`dsh headless`');
       expect(router).toMatch(/explicit/i);
       expect(router).toMatch(/(?:do not|never|without).*?(?:substitut|switch|replac)|(?:keep|honor|respect).*?(?:provider|request)/i);
     });

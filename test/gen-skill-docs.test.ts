@@ -1284,7 +1284,10 @@ describe('PLAN_FILE_REVIEW_REPORT resolver', () => {
       for (const field of ['status', 'unresolved', 'critical_gaps', 'issues_found', 'mode', 'commit']) {
         expect(report).toContain('`' + field + '`');
       }
-      expect(outside).toContain(host.name === 'codex' ? 'claude auth login' : 'codex login');
+      const loginText = host.name === 'codex'
+        ? 'claude auth login'
+        : host.name === 'dsh' ? 'DEEPSEEK_API_KEY' : 'codex login';
+      expect(outside).toContain(loginText);
       expectMentions(outside, [['never','supplies','coverage']], 'outside');
     }
   });
